@@ -1,15 +1,29 @@
 <html>
   <body>
+
+  <script src="lib.js"></script>
+  <div id="log"></div>
+  <p>Enter BPM</p>
+  <input type="number" id="beats">
+  <button onclick="isRecording=true;playMetronome()">Begin Recording</button>
+  <button onclick="isRecording=false;endListen()">End Recording</button>
+
+  <canvas id="canvas" width="1280" height="720"></canvas>
+
   <script>
-    var bpm=240;
-    var checksPerSecond = 1000/((bpm/60)*4);
-    var isRecording = 0;
+    var isRecording = false;
+
+    var count = 4;
+
+    function stopRecording(){
+        isRecording = false;
+    }
+
     function playMetronome() {
-      setTimeout(function(){
-        var metSound = new Audio("click.wav");
-        metSound.play();
-        playMetronome();
-      }, 1000/(bpm/60));
+        var beats = document.getElementById("beats").value;
+        startListen(beats)
+       // var metSound = new Audio("click.wav");
+       // metSound.play();
     }
 
     var notes =      ["C0",   "C#0",  "D0",   "D#0",  "E0",   "F0",   "F#0",  "G0",   "G#0",  "A0",   "A#0",  "B0",
@@ -23,20 +37,113 @@
                       "C8",   "C#8",  "D8",   "D#8",  "E8",   "F8",   "F#8",  "G8",   "G#8",  "A8",   "A#8",  "B8",
                       "C9",   "C#9",  "D9",   "D#9",  "E9",   "F9",   "F#9",  "G9",   "G#9",  "A9",   "A#9",  "B9",];
     var lowerBound = [15.893, 16.836, 17.836, 18.901, 20.026, 21.216, 22.476, 23.811, 25.231, 26.731, 28.321, 30.006]
-    for (var i=1; i < 9; i++) {
+    for (var i=1; i <= 9; i++) {
       for (var j=0; j<12; j++) {
         lowerBound.push(lowerBound[j]*(Math.pow(2,i)));
       }
     }
 
-    onNewNote = function(freq) {
-      var lower = 119;
-      while (lowerBound[lower] > freq) {
-        lower--;
+    var canvas=document.getElementById("canvas");
+    var ctx=canvas.getContext("2d");
+    var background = new Image();
+    var treble = new Image();
+    var noteCounter = 0;
+    background.src = "staff.jpg";
+    treble.src = "treble.gif";
+
+    background.onload = function(){
+      ctx.drawImage(background,30,150);
+      ctx.drawImage(treble, 30, 190);
+      ctx.filLStyle = "#000000";
+
+      onNewNote = function(freq, silence) {
+      if(silence){
+          appendToLog("R");
+          noteCounter++;
+          if (noteCounter>24) {
+            noteCounter=0;
+            clear();
+          }
+          return;
       }
-      notes[lower];
-    };
+
+      if(freq == "?"){
+          appendToLog("?");
+          noteCounter++;
+      }
+
+        var lower = 119;
+        while (lowerBound[lower] > freq) {
+          lower-=1;
+        }
+        //console.log(freq);
+        //console.log(lower);
+        console.log(notes[lower]);
+        appendToLog(notes[lower]);
+        drawNote(ctx, 100+50*noteCounter, chooseY(lower), 40, 25, notes[lower]);
+        noteCounter++;
+
+        if (noteCounter>24) {
+          noteCounter=0;
+          clear()
+        }
+      };
+
+
+      function setLog(str){
+          document.getElementById('log').innerHTML = str;
+      }
+
+      function appendToLog(str){
+          document.getElementById('log').innerHTML += str;
+      }
+    }
+
+    function drawNote(context, centerX, centerY, width, height, pitch) {
+      context.beginPath();
+      context.moveTo(centerX, centerY - height/2); // A1
+      context.bezierCurveTo(
+        centerX + width/2, centerY - height/2, // C1
+        centerX + width/2, centerY + height/2, // C2
+        centerX, centerY + height/2); // A2
+      context.bezierCurveTo(
+        centerX - width/2, centerY + height/2, // C3
+        centerX - width/2, centerY - height/2, // C4
+        centerX, centerY - height/2); // A1
+      context.fillStyle = "black";
+      context.fill();
+      context.closePath();
+      context.font = "12px Arial";
+      context.fillStyle = "white";
+      ctx.fillText(pitch, centerX-10, centerY+4);
+    }
+
+    function chooseY(notesIndex) {
+      var yPositions = [332,320,305,295,284,272,260];
+      if (notesIndex%12 <= 1) //C, C#
+        return 332;
+      else if (notesIndex%12==2 || notesIndex%12==3)  //D, D#
+        return 320;
+      else if (notesIndex%12==4)  //E
+        return 305;
+      else if (notesIndex%12==5 || notesIndex%12==6) //F, F#
+        return 295;
+      else if (notesIndex%12==7 || notesIndex%12==8) //G, G#
+        return 284;
+      else if (notesIndex%12==9 || notesIndex%12==10) //A, A#
+        return 272;
+      else if (notesIndex%12==11) //B
+        return 260;
+    }
+
+    function clear(){
+      var c = document.getElementById("canvas");
+      var ctx = c.getContext("2d");
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.beginPath();
+      ctx.drawImage(background,30,150);
+      ctx.drawImage(treble, 30, 190);
+    }
   </script>
-  <button onclick="playMetronome()">sound</button>
 </body>
 </html>
