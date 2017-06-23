@@ -3,6 +3,8 @@ var sample_length_milliseconds = 100;
 var C2 = 65.41; // C2 note, in Hz.
 var notes = [ "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" ];
 var test_frequencies = [];
+var volume_thresh = 20000;
+
 for (var i = 0; i < 30; i++)
 {
 	var note_frequency = C2 * Math.pow(2, i / 12);
@@ -24,6 +26,7 @@ function use_stream(stream)
 	var audio_context = new AudioContext();
 	var microphone = audio_context.createMediaStreamSource(stream);
 	window.source = microphone; // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=934512
+
 	var script_processor = audio_context.createScriptProcessor(1024, 1, 1);
 	script_processor.connect(audio_context.destination);
 	microphone.connect(script_processor);
@@ -38,17 +41,19 @@ function use_stream(stream)
 		// Stop recording after sample_length_milliseconds.
 		if (buffer.length > sample_length_milliseconds * audio_context.sampleRate / 1000)
 		{
-			compute_correlations(buffer, test_frequencies, audio_context.sampleRate)
+			compute_correlations(buffer, test_frequencies, audio_context.sampleRate, volume_thresh);
 			buffer = [];
 		}
 	};
 	script_processor.onaudioprocess = window.capture_audio;
 }
 
-function startListen(sample_length){
+function startListen(bpm, volume){
+	sample_length = 1000 / ((bpm / 60) * 4);
 	navigator.getUserMedia({ "audio": true }, use_stream, function() {});
 	recording = true;
 	sample_length_milliseconds = sample_length;
+	volume_thresh = volume;
 }
 
 function endListen(){
@@ -96,14 +101,18 @@ function interpret_correlation_result(timeseries, frequency_amplitudes)
 		maximum_index = i;
 		maximum_magnitude = magnitudes[i];
 	}
+	console.log(maximum_magnitude);
 	// Compute the average magnitude. We'll only pay attention to frequencies
 	// with magnitudes significantly above average.
 	var average = magnitudes.reduce(function(a, b) { return a + b; }, 0) / magnitudes.length;
 	var confidence = maximum_magnitude / average;
-	var confidence_threshold = 6; // empirical, arbitrary.
-	if (confidence > confidence_threshold)
+	var confidence_threshold = 9.3; // empirical, arbitrary.
+	if (confidence > confidence_threshold && maximum_magnitude > 7000)
 	{
 		var dominant_frequency = test_frequencies[maximum_index];
 		onNewNote(dominant_frequency.frequency);
+	}
+	else{
+		onNewNote(0, true);
 	}
 }
