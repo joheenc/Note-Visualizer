@@ -19,8 +19,8 @@ var notes =      ["C0",   "C#0",  "D0",   "D#0",  "E0",   "F0",   "F#0",  "G0", 
     }
 
     onNewNote = function(freq) {
-      var lower = 42;
-      while (lowerBound[lower] < freq) {
+      var lower = 119;
+      while (lowerBound[lower] > freq) {
         lower--;
       }
       lower++;
