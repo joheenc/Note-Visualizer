@@ -20,37 +20,37 @@ onNewNote = function(freq){
 };
 
 var recording = false;
+navigator.getUserMedia({ "audio": true }, use_stream, function() {});
 
 function use_stream(stream)
 {
-	var audio_context = new AudioContext();
-	var microphone = audio_context.createMediaStreamSource(stream);
-	window.source = microphone; // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=934512
+    var audio_context = new AudioContext();
+    var microphone = audio_context.createMediaStreamSource(stream);
+    window.source = microphone; // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=934512
 
-	var script_processor = audio_context.createScriptProcessor(1024, 1, 1);
-	script_processor.connect(audio_context.destination);
-	microphone.connect(script_processor);
-	// Need to leak this function into the global namespace so it doesn't get
-	// prematurely garbage-collected.
-	// http://lists.w3.org/Archives/Public/public-audio/2013JanMar/0304.html
-	window.capture_audio = function(event)
-	{
-		if (!recording)
-			return;
-		buffer = buffer.concat(Array.prototype.slice.call(event.inputBuffer.getChannelData(0)));
-		// Stop recording after sample_length_milliseconds.
-		if (buffer.length > sample_length_milliseconds * audio_context.sampleRate / 1000)
-		{
-			compute_correlations(buffer, test_frequencies, audio_context.sampleRate, volume_thresh);
-			buffer = [];
-		}
-	};
-	script_processor.onaudioprocess = window.capture_audio;
+    var script_processor = audio_context.createScriptProcessor(1024, 1, 1);
+    script_processor.connect(audio_context.destination);
+    microphone.connect(script_processor);
+    // Need to leak this function into the global namespace so it doesn't get
+    // prematurely garbage-collected.
+    // http://lists.w3.org/Archives/Public/public-audio/2013JanMar/0304.html
+    window.capture_audio = function(event)
+    {
+        if (!recording)
+            return;
+        buffer = buffer.concat(Array.prototype.slice.call(event.inputBuffer.getChannelData(0)));
+        // Stop recording after sample_length_milliseconds.
+        if (buffer.length > sample_length_milliseconds * audio_context.sampleRate / 1000)
+        {
+            compute_correlations(buffer, test_frequencies, audio_context.sampleRate, volume_thresh);
+            buffer = [];
+        }
+    };
+    script_processor.onaudioprocess = window.capture_audio;
 }
 
 function startListen(bpm, volume){
-	sample_length = 1000 / ((bpm / 60) * 4);
-	navigator.getUserMedia({ "audio": true }, use_stream, function() {});
+	sample_length = 1000 / ((bpm / 60));
 	recording = true;
 	sample_length_milliseconds = sample_length;
 	volume_thresh = volume;
@@ -58,6 +58,7 @@ function startListen(bpm, volume){
 
 function endListen(){
 	recording = false;
+    count = 4;
 }
 
 
@@ -88,6 +89,10 @@ function compute_correlations(timeseries, test_frequencies, sample_rate)
 
 function interpret_correlation_result(timeseries, frequency_amplitudes)
 {
+
+    var metSound = new Audio("click.wav");
+             metSound.play();
+
 	// Compute the (squared) magnitudes of the complex amplitudes for each
 	// test frequency.
 	var magnitudes = frequency_amplitudes.map(function(z) { return z[0] * z[0] + z[1] * z[1]; });
@@ -107,12 +112,21 @@ function interpret_correlation_result(timeseries, frequency_amplitudes)
 	var average = magnitudes.reduce(function(a, b) { return a + b; }, 0) / magnitudes.length;
 	var confidence = maximum_magnitude / average;
 	var confidence_threshold = 9.3; // empirical, arbitrary.
-	if (confidence > confidence_threshold && maximum_magnitude > 7000)
+	if(count > 0){
+        count--;
+        return;
+    }
+
+    if (confidence > confidence_threshold && maximum_magnitude > 10000)
 	{
 		var dominant_frequency = test_frequencies[maximum_index];
 		onNewNote(dominant_frequency.frequency);
 	}
-	else{
+	else if(maximum_magnitude < 10000){
 		onNewNote(0, true);
 	}
+    else{
+        onNewNote("?")
+    }
+    count --
 }
