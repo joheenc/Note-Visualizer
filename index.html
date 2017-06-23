@@ -4,6 +4,10 @@
   <div id="log"></div>
   <p>Enter BPM</p>
   <input type="number" id="beats">
+  <button onclick="isRecording=true;playMetronome()">Begin Recording</button>
+  <button onclick="isRecording=false;endListen()">End Recording</button>
+
+  <canvas id="canvas" width="1280" height="720"></canvas>
   <script>
     var isRecording = false;
 
@@ -37,6 +41,111 @@
       }
     }
 
+    var canvas=document.getElementById("canvas");
+    var ctx=canvas.getContext("2d");
+    var background = new Image();
+    var treble = new Image();
+    var rest = new Image();
+    var noteCounter = 0;
+    background.src = "staff.jpg";
+    treble.src = "treble.gif";
+    rest.src = "rest.png";
+
+    background.onload = function(){
+      ctx.drawImage(background,30,150);
+      ctx.drawImage(treble, 30, 190);
+      ctx.filLStyle = "#000000";
+
+      onNewNote = function(freq, silence) {
+      if(silence){
+          appendToLog("R");
+          ctx.drawImage(rest, 100+50*noteCounter, 220);
+          noteCounter++;
+          if (noteCounter>22) {
+            noteCounter=0;
+            clear();
+          }
+          return;
+      }
+
+      if(freq == "?"){
+          appendToLog("?");
+          noteCounter++;
+      }
+
+        var lower = 119;
+        while (lowerBound[lower] > freq) {
+          lower-=1;
+        }
+        //console.log(freq);
+        //console.log(lower);
+        console.log(notes[lower]);
+        appendToLog(notes[lower]);
+        drawNote(ctx, 100+50*noteCounter, chooseY(lower), 40, 25, notes[lower]);
+        noteCounter++;
+
+        if (noteCounter>22) {
+          noteCounter=0;
+          clear()
+        }
+      };
+
+
+      function setLog(str){
+          document.getElementById('log').innerHTML = str;
+      }
+
+      function appendToLog(str){
+          document.getElementById('log').innerHTML += str;
+      }
+    }
+
+    function drawNote(context, centerX, centerY, width, height, pitch) {
+      context.beginPath();
+      context.moveTo(centerX, centerY - height/2); // A1
+      context.bezierCurveTo(
+        centerX + width/2, centerY - height/2, // C1
+        centerX + width/2, centerY + height/2, // C2
+        centerX, centerY + height/2); // A2
+      context.bezierCurveTo(
+        centerX - width/2, centerY + height/2, // C3
+        centerX - width/2, centerY - height/2, // C4
+        centerX, centerY - height/2); // A1
+      context.fillStyle = "black";
+      context.fill();
+      context.closePath();
+      context.font = "12px Arial";
+      context.fillStyle = "white";
+      ctx.fillText(pitch, centerX-10, centerY+4);
+    }
+
+    function chooseY(notesIndex) {
+      var yPositions = [332,320,305,295,284,272,260];
+      if (notesIndex%12 <= 1) //C, C#
+        return 332;
+      else if (notesIndex%12==2 || notesIndex%12==3)  //D, D#
+        return 320;
+      else if (notesIndex%12==4)  //E
+        return 305;
+      else if (notesIndex%12==5 || notesIndex%12==6) //F, F#
+        return 295;
+      else if (notesIndex%12==7 || notesIndex%12==8) //G, G#
+        return 284;
+      else if (notesIndex%12==9 || notesIndex%12==10) //A, A#
+        return 272;
+      else if (notesIndex%12==11) //B
+        return 260;
+    }
+
+    function clear(){
+      var c = document.getElementById("canvas");
+      var ctx = c.getContext("2d");
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.beginPath();
+      ctx.drawImage(background,30,150);
+      ctx.drawImage(treble, 30, 190);
+    }
+  </script>
     onNewNote = function(freq, silence) {
     if(silence){
         appendToLog("R");
