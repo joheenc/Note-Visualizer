@@ -117,12 +117,12 @@ function interpret_correlation_result(timeseries, frequency_amplitudes)
         return;
     }
 
-    if (confidence > confidence_threshold && maximum_magnitude > 10000)
+    if (confidence > confidence_threshold && maximum_magnitude > 5000)
 	{
 		var dominant_frequency = test_frequencies[maximum_index];
 		onNewNote(dominant_frequency.frequency);
 	}
-	else if(maximum_magnitude < 10000){
+	else if(maximum_magnitude < 5000){
 		onNewNote(0, true);
 	}
     else{
