@@ -146,36 +146,6 @@
       ctx.drawImage(treble, 30, 190);
     }
   </script>
-    onNewNote = function(freq, silence) {
-    if(silence){
-        appendToLog("R");
-        return;
-    }
-
-    if(freq == "?"){
-        appendToLog("?");
-    }
-
-      var lower = 119;
-      while (lowerBound[lower] > freq) {
-        lower-=1;
-      }
-      //console.log(freq);
-      //console.log(lower);
-      console.log(notes[lower]);
-      appendToLog(notes[lower]);
-    };
-
-
-    function setLog(str){
-        document.getElementById('log').innerHTML = str;
-    }
-
-    function appendToLog(str){
-        document.getElementById('log').innerHTML += str;
-    }
-
-  </script>
     <button onclick="isRecording=true;playMetronome()">Begin Recording</button>
     <button onclick="isRecording=false;endListen()">End Recording</button>
 </body>
