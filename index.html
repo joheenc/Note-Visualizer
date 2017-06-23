@@ -10,8 +10,8 @@ var notes =      ["C0",   "C#0",  "D0",   "D#0",  "E0",   "F0",   "F#0",  "G0", 
                   "C6",   "C#6",  "D6",   "D#6",  "E6",   "F6",   "F#6",  "G6",   "G#6",  "A6",   "A#6",  "B6",
                   "C7",   "C#7",  "D7",   "D#7",  "E7",   "F7",   "F#7",  "G7",   "G#7",  "A7",   "A#7",  "B7",
                   "C8",   "C#8",  "D8",   "D#8",  "E8",   "F8",   "F#8",  "G8",   "G#8",  "A8",   "A#8",  "B8",
-                  "C9",   "C#9",  "D9",   "D#9",  "E9",   "F9",   "F#9",  "G9",   "G#9",  "A9",   "A#9",  "B9",];
-    var lowerBound = [15.893, 16.836, 17.836, 18.901, 20.026, 21.216, 22.476, 23.811, 25.231, 26.731, 28.321, 30.006]
+                  "C9",   "C#9",  "D9",   "D#9",  "E9",   "F9",   "F#9",  "G9",   "G#9",  "A9",   "A#9",  "B9"];
+    var lowerBound = [15.893, 16.836, 17.836, 18.901, 20.026, 21.216, 22.476, 23.811, 25.231, 26.731, 28.321, 30.006];
     for (i=1; i < 9; i++) {
       for (int j=0; j<12; ++) {
         lowerBound.push(lowerBound[j]*(Math.pow(2,i)));
@@ -25,135 +25,7 @@ var notes =      ["C0",   "C#0",  "D0",   "D#0",  "E0",   "F0",   "F#0",  "G0", 
       }
       lower++;
       return notes[lower];
-    };	
-
-window.addEventListener("load", initialize);
-
-var correlation_worker = new Worker("correlation_worker.js");
-correlation_worker.addEventListener("message", interpret_correlation_result);
-
-function initialize()
-{
-	var get_user_media = navigator.getUserMedia;
-	get_user_media = get_user_media || navigator.webkitGetUserMedia;
-	get_user_media = get_user_media || navigator.mozGetUserMedia;
-	get_user_media.call(navigator, { "audio": true }, use_stream, function() {});
-
-	document.getElementById("play-note").addEventListener("click", toggle_playing_note);
-}
-
-function use_stream(stream)
-{
-	var audio_context = new AudioContext();
-	var microphone = audio_context.createMediaStreamSource(stream);
-	window.source = microphone; // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=934512
-	var script_processor = audio_context.createScriptProcessor(1024, 1, 1);
-
-	script_processor.connect(audio_context.destination);
-	microphone.connect(script_processor);
-
-	var buffer = [];
-	var sample_length_milliseconds = 100;
-	var recording = true;
-
-	// Need to leak this function into the global namespace so it doesn't get
-	// prematurely garbage-collected.
-	// http://lists.w3.org/Archives/Public/public-audio/2013JanMar/0304.html
-	window.capture_audio = function(event)
-	{
-		if (!recording)
-			return;
-
-		buffer = buffer.concat(Array.prototype.slice.call(event.inputBuffer.getChannelData(0)));
-
-		// Stop recording after sample_length_milliseconds.
-		if (buffer.length > sample_length_milliseconds * audio_context.sampleRate / 1000)
-		{
-			recording = false;
-
-			correlation_worker.postMessage
-			(
-				{
-					"timeseries": buffer,
-					"test_frequencies": test_frequencies,
-					"sample_rate": audio_context.sampleRate
-				}
-			);
-
-			buffer = [];
-			setTimeout(function() { recording = true; }, 250);
-		}
-	};
-
-	script_processor.onaudioprocess = window.capture_audio;
-}
-
-function interpret_correlation_result(event)
-{
-	var timeseries = event.data.timeseries;
-	var frequency_amplitudes = event.data.frequency_amplitudes;
-
-	// Compute the (squared) magnitudes of the complex amplitudes for each
-	// test frequency.
-	var magnitudes = frequency_amplitudes.map(function(z) { return z[0] * z[0] + z[1] * z[1]; });
-
-	// Find the maximum in the list of magnitudes.
-	var maximum_index = -1;
-	var maximum_magnitude = 0;
-	for (var i = 0; i < magnitudes.length; i++)
-	{
-		if (magnitudes[i] <= maximum_magnitude)
-			continue;
-
-		maximum_index = i;
-		maximum_magnitude = magnitudes[i];
-	}
-
-	// Compute the average magnitude. We'll only pay attention to frequencies
-	// with magnitudes significantly above average.
-	var average = magnitudes.reduce(function(a, b) { return a + b; }, 0) / magnitudes.length;
-	var confidence = maximum_magnitude / average;
-	var confidence_threshold = 10; // empirical, arbitrary.
-	if (confidence > confidence_threshold)
-	{
-		var dominant_frequency = test_frequencies[maximum_index];
-		document.getElementById("note-name").textContent = dominant_frequency.name;
-		document.getElementById("frequency").textContent = dominant_frequency.frequency;
-	}
-}
-
-// Unnecessary addition of button to play an E note.
-var note_context = new AudioContext();
-var note_node = note_context.createOscillator();
-var gain_node = note_context.createGain();
-note_node.frequency = C2 * Math.pow(2, 4 / 12); // E, ~82.41 Hz.
-gain_node.gain.value = 0;
-note_node.connect(gain_node);
-gain_node.connect(note_context.destination);
-note_node.start();
-
-var playing = false;
-function toggle_playing_note()
-{
-	playing = !playing;
-	if (playing)
-		gain_node.gain.value = 0.1;
-	else
-		gain_node.gain.value = 0;
-}
-</script>
-</head>
-
-<body>
-<p>It sounds like you're playing...</p>
-<h1 id="note-name"></h1>
-<p>
-	<span>frequency (Hz):</span>
-	<span id="frequency"></span>
-</p>
-<hr>
-<button id="play-note">start/stop an E note</button>
-<hr>
-<a href="https://github.com/jbergknoff/guitar-tuner">Source code</a> / <a href="http://jonathan.bergknoff.com/journal/making-a-guitar-tuner-html5">Explanatory article</a>
-</body>
+    };
+<>
 </html>
+
